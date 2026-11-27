@@ -5,7 +5,7 @@ on:
     # 台灣大樂透每週二、每週五晚上開獎（約 20:30 開獎完畢）
     # UTC 13:00 等於台灣時間 (UTC+8) 21:00
     - cron: '0 13 * * 2,5'
-  workflow_dispatch: # 支援在 GitHub 網頁上手動一鍵點擊執行
+  workflow_dispatch: # 支援在 GitHub 網頁 Actions 分頁上手動一鍵測試執行
 
 permissions:
   contents: write
@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: true
 
       - name: Set up Python
         uses: setup-python@v5
@@ -30,7 +32,12 @@ jobs:
 
       - name: Commit and push if updated
         run: |
-          git config --local user.email "action@github.com"
-          git config --local user.name "GitHub Action Bot"
-          git add data/lotto649.json public/data/lotto649.json
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto sync: Update Lotto 649 historical data" && git push)
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add index.html public/index.html data/ public/data/
+          if git diff --staged --quiet; then
+            echo "No new draw updates found. Everything is up to date."
+          else
+            git commit -m "chore(auto-sync): update Lotto 649 latest draws [skip ci]"
+            git push origin main
+          fi

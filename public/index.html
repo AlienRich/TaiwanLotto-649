@@ -921,22 +921,47 @@ function exportHistoryCSV() {
   URL.revokeObjectURL(url);
 }
 
-// Background auto sync without user interaction
+// Intelligent Throttled Sync:
+// Checks local timestamp to avoid querying the cloud on every single page open.
+// Only queries if at least 12 hours have passed, or if current local record is older than last draw day.
+const LAST_SYNC_CHECK_KEY = 'TW_LOTTO_LAST_SYNC_TIME';
+
 async function autoBackgroundSync() {
+  const now = Date.now();
+  let lastCheck = 0;
   try {
-    const resp = await fetch('data/lotto649.json?t=' + Date.now());
+    lastCheck = parseInt(localStorage.getItem(LAST_SYNC_CHECK_KEY) || '0', 10);
+  } catch (e) {}
+
+  // 12 hours cooldown = 12 * 60 * 60 * 1000 ms
+  const TWELVE_HOURS = 12 * 60 * 60 * 1000;
+  const timeSinceLastCheck = now - lastCheck;
+
+  // If checked recently (within 12 hours), keep existing state and do NOT send network request
+  if (timeSinceLastCheck < TWELVE_HOURS) {
+    return;
+  }
+
+  try {
+    const resp = await fetch('data/lotto649.json?t=' + now);
     if (resp.ok) {
       const freshRaw = await resp.json();
       const freshData = normalize(freshRaw);
+      // Mark check timestamp
+      try { localStorage.setItem(LAST_SYNC_CHECK_KEY, String(now)); } catch (e) {}
+
       if (freshData.length > CURRENT_DATA.length) {
         CURRENT_DATA = freshData;
         CURRENT_DATA.sort((a, b) => a.period - b.period);
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(CURRENT_DATA)); } catch (e) {}
         renderRecentDraws();
-        document.getElementById('sync-status').textContent = '✓ 已自動更新最新期數';
+        const badge = document.getElementById('sync-status');
+        if (badge) badge.textContent = '✓ 已更新至最新期數';
       }
     }
-  } catch (err) {}
+  } catch (err) {
+    // Graceful offline fallback
+  }
 }
 
 // Mathematical composite model computation
