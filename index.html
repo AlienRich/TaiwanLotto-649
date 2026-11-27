@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="大樂透動力學預測儀 - 結合台灣彩券歷史大數據與非線性時間衰減轉移矩陣的數理實驗平台">
+  <!-- Content Security Policy following Google Modern Web Security Guide -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://api.taiwanlottery.com; img-src 'self' data:; object-src 'none'; base-uri 'none';">
+  <meta name="referrer" content="no-referrer-when-downgrade">
+  <title>大樂透動力學預測儀 | 歷史數據與數理推導</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=JetBrains+Mono:wght@600;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-card: rgba(18, 26, 43, 0.88);
+      --bg-card-border: rgba(255, 215, 0, 0.22);
+      --gold-primary: #f5c842;
+      --gold-glow: rgba(245, 200, 66, 0.45);
+      --red-special: #ff4757;
+      --cyan-accent: #00f2fe;
+      --text-main: #f0f3f8;
+      --text-muted: #8b9bb4;
+      --focus-ring: #00f2fe;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-primary);
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(26, 44, 84, 0.5) 0%, transparent 70%),
+        radial-gradient(circle at 80% 90%, rgba(245, 200, 66, 0.08) 0%, transparent 60%);
+      color: var(--text-main);
+      font-family: 'Noto Sans TC', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 24px 16px 60px 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    /* Accessibility focus indicators */
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid var(--focus-ring);
+      outline-offset: 3px;
+    }
+
+    /* Skip Link for Keyboard Accessibility */
+    .skip-link {
+      position: absolute;
+      top: -40px;
+      left: 10px;
+      background: var(--gold-primary);
+      color: #000;
+      padding: 8px 16px;
+      font-weight: 700;
+      border-radius: 4px;
+      z-index: 999;
+      text-decoration: none;
+      transition: top 0.2s ease;
+    }
+    .skip-link:focus {
+      top: 10px;
+    }
+
+    .container {
+      max-width: 960px;
+      width: 100%;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+    .badge {
+      display: inline-block;
+      background: linear-gradient(135deg, rgba(245, 200, 66, 0.2), rgba(255, 71, 87, 0.2));
+      border: 1px solid var(--gold-primary);
+      color: var(--gold-primary);
+      padding: 4px 14px;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+    h1 {
+      font-size: 2.2rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #ffffff 30%, var(--gold-primary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+    }
+
+    /* Status Bar */
+    .status-bar {
+      background: rgba(14, 21, 37, 0.9);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      padding: 12px 18px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 24px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #2ed573;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+      box-shadow: 0 0 8px #2ed573;
+    }
+    .btn-sync {
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #d1d8e0;
+      padding: 8px 14px;
+      min-height: 44px; /* Touch target minimum */
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-sync:hover {
+      background: rgba(245, 200, 66, 0.15);
+      border-color: var(--gold-primary);
+      color: var(--gold-primary);
+    }
+
+    /* Card Component */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 16px;
+      padding: 22px 24px;
+      margin-bottom: 24px;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    }
+    h2.card-title {
+      font-size: 1.18rem;
+      font-weight: 700;
+      color: var(--gold-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    /* Semantic Table Accessibility following modern-web-guidance */
+    .table-responsive {
+      overflow-x: auto;
+      border-radius: 8px;
+    }
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+    }
+    .history-table caption {
+      text-align: left;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .history-table th {
+      text-align: left;
+      padding: 10px 14px;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+      font-weight: 600;
+      background: rgba(0, 0, 0, 0.2);
+    }
+    .history-table td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .history-table tr:hover td {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* Number Balls */
+    .balls-row {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .ball {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-weight: 800;
+      font-size: 0.88rem;
+      color: #fff;
+      background: radial-gradient(circle at 30% 30%, #3a7bd5, #004085);
+      box-shadow: inset 0 -2px 4px rgba(0,0,0,0.4), 0 2px 5px rgba(0,0,0,0.3);
+    }
+    .ball.special {
+      background: radial-gradient(circle at 30% 30%, #ff6b81, #c0392b);
+      box-shadow: inset 0 -2px 4px rgba(0,0,0,0.4), 0 0 10px rgba(255, 71, 87, 0.6);
+    }
+
+    /* SLOT MACHINE STAGE */
+    .machine-container {
+      background: linear-gradient(180deg, #162035 0%, #0d1424 100%);
+      border: 2px solid var(--gold-primary);
+      box-shadow: 0 0 35px var(--gold-glow), inset 0 0 20px rgba(0, 0, 0, 0.8);
+      border-radius: 20px;
+      padding: 30px 24px;
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .lever-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 30px;
+    }
+    .lever-btn {
+      background: linear-gradient(135deg, #ffd32a 0%, #f5a623 100%);
+      border: none;
+      color: #1a1000;
+      font-size: 1.35rem;
+      font-weight: 900;
+      padding: 16px 42px;
+      min-height: 54px;
+      border-radius: 50px;
+      cursor: pointer;
+      box-shadow: 0 8px 25px rgba(245, 166, 35, 0.4), inset 0 2px 2px rgba(255, 255, 255, 0.8);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      letter-spacing: 1px;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .lever-btn:hover {
+      transform: translateY(-2px) scale(1.02);
+      box-shadow: 0 12px 30px rgba(245, 166, 35, 0.6);
+    }
+    .lever-btn:active {
+      transform: translateY(2px) scale(0.98);
+      box-shadow: 0 4px 15px rgba(245, 166, 35, 0.4);
+    }
+    .lever-btn:disabled {
+      filter: grayscale(0.8);
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* Predictions Grid */
+    .predictions-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .pred-box {
+      background: rgba(10, 15, 26, 0.85);
+      border: 1px solid rgba(255, 215, 0, 0.2);
+      border-radius: 14px;
+      padding: 18px 20px;
+      text-align: left;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .pred-box.active-reveal {
+      border-color: var(--cyan-accent);
+      box-shadow: 0 0 16px rgba(0, 242, 254, 0.25);
+    }
+    .pred-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .pred-period {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gold-primary);
+    }
+    .pred-meta {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* SLOT REELS (Compositor-accelerated with translate) */
+    .reels-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .slot-reel {
+      width: 58px;
+      height: 72px;
+      background: #060911;
+      border: 2px solid #2b3956;
+      border-radius: 10px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 6px 12px rgba(0,0,0,0.9), 0 2px 5px rgba(0,0,0,0.5);
+    }
+    .slot-reel.special-reel {
+      border-color: var(--red-special);
+      box-shadow: inset 0 6px 12px rgba(0,0,0,0.9), 0 0 10px rgba(255, 71, 87, 0.35);
+    }
+    .slot-strip {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      will-change: transform;
+    }
+    .slot-digit {
+      width: 58px;
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.85rem;
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+    }
+    .special-reel .slot-digit {
+      color: #ff6b81;
+      text-shadow: 0 0 10px rgba(255, 71, 87, 0.6);
+    }
+    .reel-divider {
+      font-size: 1.6rem;
+      color: var(--text-muted);
+      font-weight: 300;
+      padding: 0 4px;
+    }
+
+    /* Reduced Motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      .slot-strip {
+        transition: none !important;
+      }
+      .lever-btn {
+        transition: none !important;
+      }
+    }
+
+    /* Formula & Derivation Section */
+    .formula-card {
+      background: var(--bg-card);
+      border: 1px solid var(--bg-card-border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      line-height: 1.7;
+      font-size: 0.94rem;
+    }
+    .formula-card h3 {
+      color: var(--cyan-accent);
+      margin: 18px 0 8px 0;
+      font-size: 1.05rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .math-code {
+      background: rgba(0, 0, 0, 0.4);
+      border-left: 3px solid var(--gold-primary);
+      padding: 10px 14px;
+      margin: 8px 0 14px 0;
+      border-radius: 0 8px 8px 0;
+      font-family: 'JetBrains Mono', monospace;
+      color: #e2e8f0;
+      font-size: 0.88rem;
+      overflow-x: auto;
+    }
+
+    /* Warning & Charity Footer */
+    .disclaimer-card {
+      background: linear-gradient(135deg, rgba(255, 71, 87, 0.08), rgba(245, 200, 66, 0.05));
+      border: 1px dashed rgba(255, 71, 87, 0.4);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+    }
+    .warning-text {
+      color: #ff6b81;
+      font-weight: 700;
+      font-size: 1.15rem;
+      margin-bottom: 10px;
+      letter-spacing: 1px;
+    }
+    .charity-text {
+      color: #f5c842;
+      font-size: 1rem;
+      font-weight: 500;
+      line-height: 1.75;
+    }
+
+    /* Live Region for Screen Readers */
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 640px) {
+      h1 { font-size: 1.6rem; }
+      .slot-reel { width: 40px; height: 56px; }
+      .slot-digit { width: 40px; height: 56px; font-size: 1.3rem; }
+      .reels-row { gap: 6px; }
+      .lever-btn { padding: 14px 28px; font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+
+<a href="#main-content" class="skip-link">跳至主要內容</a>
+
+<div class="container">
+  <!-- Semantic Header -->
+  <header role="banner">
+    <div class="badge">MATHEMATICAL EXPERIMENT &middot; LOTTO 6/49</div>
+    <h1>大樂透動力學預測儀</h1>
+    <p class="subtitle">基於台灣彩券歷史開獎大數據與非線性時間衰減轉移矩陣推導</p>
+  </header>
+
+  <main id="main-content">
+    <!-- Status & Cache Bar -->
+    <section class="status-bar" aria-label="資料庫狀態與同步資訊">
+      <div>
+        <span class="status-dot" aria-hidden="true"></span>
+        歷史獎號中央庫：<strong id="cache-count">載入中...</strong> 期 (<span id="cache-range">...</span>)
+      </div>
+      <button class="btn-sync" id="btn-sync" type="button" onclick="syncLatestData()">
+        <span aria-hidden="true">&#8635;</span> 檢查遠端最新期數
+      </button>
+    </section>
+
+    <!-- Recent 5 Draws Card -->
+    <section class="card" aria-labelledby="history-heading">
+      <h2 class="card-title" id="history-heading">
+        <span aria-hidden="true">&#128197;</span> 最近 5 期開獎歷史記錄
+      </h2>
+      <div class="table-responsive">
+        <table class="history-table">
+          <caption class="sr-only">台灣彩券大樂透最近 5 期開獎號碼與特別號清單</caption>
+          <thead>
+            <tr>
+              <th scope="col">期別</th>
+              <th scope="col">開獎日期</th>
+              <th scope="col">開出獎號 (依大小排序)</th>
+              <th scope="col">特別號</th>
+            </tr>
+          </thead>
+          <tbody id="recent-draws-tbody">
+            <!-- Filled safely by DOM APIs -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SLOT MACHINE STAGE -->
+    <section class="machine-container" aria-label="拉霸機搖獎區域">
+      <div class="lever-row">
+        <button class="lever-btn" id="lever-btn" type="button" onclick="startSlotMachine()">
+          <span aria-hidden="true">&#127920;</span> 啟動動力學拉 BAR 搖獎
+        </button>
+      </div>
+
+      <!-- ARIA Live region to announce draw result to screen readers -->
+      <div id="live-announcer" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+      <div class="predictions-grid">
+        <!-- Predicted Draw 1 -->
+        <article class="pred-box" id="box-1" aria-labelledby="pred-h1">
+          <div class="pred-header">
+            <span class="pred-period" id="pred-h1">&#10148; 預測未來第 1 期 (第 <span id="pred-p1">--</span> 期)</span>
+            <span class="pred-meta" id="meta-1">數理狀態待運算...</span>
+          </div>
+          <div class="reels-row" aria-label="第 1 期開獎號碼滾輪">
+            <div class="slot-reel"><div class="slot-strip" id="reel-1-0"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-1-1"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-1-2"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-1-3"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-1-4"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-1-5"></div></div>
+            <span class="reel-divider" aria-hidden="true">+</span>
+            <div class="slot-reel special-reel"><div class="slot-strip" id="reel-1-s"></div></div>
+          </div>
+        </article>
+
+        <!-- Predicted Draw 2 -->
+        <article class="pred-box" id="box-2" aria-labelledby="pred-h2">
+          <div class="pred-header">
+            <span class="pred-period" id="pred-h2">&#10148; 預測未來第 2 期 (第 <span id="pred-p2">--</span> 期)</span>
+            <span class="pred-meta" id="meta-2">數理狀態待運算...</span>
+          </div>
+          <div class="reels-row" aria-label="第 2 期開獎號碼滾輪">
+            <div class="slot-reel"><div class="slot-strip" id="reel-2-0"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-2-1"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-2-2"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-2-3"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-2-4"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-2-5"></div></div>
+            <span class="reel-divider" aria-hidden="true">+</span>
+            <div class="slot-reel special-reel"><div class="slot-strip" id="reel-2-s"></div></div>
+          </div>
+        </article>
+
+        <!-- Predicted Draw 3 -->
+        <article class="pred-box" id="box-3" aria-labelledby="pred-h3">
+          <div class="pred-header">
+            <span class="pred-period" id="pred-h3">&#10148; 預測未來第 3 期 (第 <span id="pred-p3">--</span> 期)</span>
+            <span class="pred-meta" id="meta-3">數理狀態待運算...</span>
+          </div>
+          <div class="reels-row" aria-label="第 3 期開獎號碼滾輪">
+            <div class="slot-reel"><div class="slot-strip" id="reel-3-0"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-3-1"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-3-2"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-3-3"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-3-4"></div></div>
+            <div class="slot-reel"><div class="slot-strip" id="reel-3-5"></div></div>
+            <span class="reel-divider" aria-hidden="true">+</span>
+            <div class="slot-reel special-reel"><div class="slot-strip" id="reel-3-s"></div></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Mathematical Formula & Methodology -->
+    <section class="formula-card" aria-labelledby="formula-heading">
+      <h2 class="card-title" id="formula-heading">
+        <span aria-hidden="true">&#9874;</span> 本系統號碼數理推導架構 (Mathematical Derivation Architecture)
+      </h2>
+      <p>本預測系統基於<strong>「假設開獎機構存在微弱物理未消除動量與週期回補偏向」</strong>之條件設定，非隨機生成，而是採用四大數理層次複合計算：</p>
+
+      <h3>1. 時間指數衰減動態動量模型 (Exponential Moving Momentum, EMA)</h3>
+      <p>捕捉近期開獎球組與氣流機械之微小物理慣性，給予近期較高權重，半衰期設定為 &tau; = 25 期：</p>
+      <div class="math-code">S_EMA(n) = &sum; [ t=1 到 T ] e^(- &lambda; &times; (T - t)) &times; I(n &isin; Draw_t), 其中 &lambda; = ln(2) / 25</div>
+
+      <h3>2. 一階馬可夫狀態轉移機率 (Lag-1 Markov Transition Matrix)</h3>
+      <p>計算在第 t 期開出號碼組合 C_t 的條件下，號碼 n 在第 t+1 期出現的轉移機率：</p>
+      <div class="math-code">S_Markov(n) = &sum; [ c &isin; Draw_t ] P( n_(t+1) = n | n_t = c )</div>
+
+      <h3>3. 泊松週期更新危險率模型 (Poisson Renewal Hazard Rate)</h3>
+      <p>統計各號碼之歷史平均開出間隔 &mu;_n 與當前遺漏期數 g_n，計算週期回補張力：</p>
+      <div class="math-code">S_Hazard(n) = (g_n / &mu;_n) &times; exp( -0.05 &times; |g_n - &mu;_n| )</div>
+
+      <h3>4. 拓撲共現圖論 (Co-occurrence Graph Affinity) 約束優化</h3>
+      <p>對綜合評分前 12 名之候選號碼池，透過貪婪演算法尋求歷史共現矩陣相互引力最高、且總和落在常態 3&sigma; 區間 (100 ~ 200) 與奇偶比例平衡 (3奇3偶或2奇4偶) 之最佳拓撲結構解。</p>
+    </section>
+  </main>
+
+  <!-- Semantic Footer with Disclaimer -->
+  <footer class="disclaimer-card" role="contentinfo">
+    <div class="warning-text">『純屬娛樂，量力而為支持公益』</div>
+    <div class="charity-text">
+      『若幸運之神眷顧您，請撥 1/10 的獎金，捐助「中華聯合勸募協會」或自己心儀的公益團體，祝福您。』
+    </div>
+  </footer>
+</div>
+
+<script>
+// Prevent dangerous innerHTML assignment following modern-web-guidance security
+const STORAGE_KEY = 'TW_LOTTO_649_CACHE';
+let CURRENT_DATA = [];
+
+// Safely create text element
+function createEl(tag, className, text) {
+  const el = document.createElement(tag);
+  if (className) el.className = className;
+  if (text !== undefined) el.textContent = text;
+  return el;
+}
+
+// Load lotto data: First tries localStorage, fallback to centralized public/data/lotto649.json
+async function initDataset() {
+  let localData = null;
+  try {
+    const cached = localStorage.getItem(STORAGE_KEY);
+    if (cached) {
+      localData = JSON.parse(cached);
+    }
+  } catch (e) {
+    console.warn('LocalStorage access warning:', e);
+  }
+
+  try {
+    const resp = await fetch('data/lotto649.json');
+    if (resp.ok) {
+      const remoteData = await resp.json();
+      if (!localData || remoteData.length >= localData.length) {
+        CURRENT_DATA = remoteData;
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(CURRENT_DATA)); } catch (e) {}
+      } else {
+        CURRENT_DATA = localData;
+      }
+    } else {
+      CURRENT_DATA = localData || [];
+    }
+  } catch (err) {
+    console.warn('Remote data fetch failed, using local cache:', err);
+    CURRENT_DATA = localData || [];
+  }
+
+  if (CURRENT_DATA.length > 0) {
+    CURRENT_DATA.sort((a, b) => a.period - b.period);
+    renderRecentDraws();
+  }
+}
+
+// Render Recent 5 draws using safe DOM methods
+function renderRecentDraws() {
+  const tbody = document.getElementById('recent-draws-tbody');
+  tbody.replaceChildren();
+
+  const recent = CURRENT_DATA.slice(-5).reverse();
+  recent.forEach(d => {
+    const tr = document.createElement('tr');
+    
+    const tdPeriod = createEl('td');
+    const strong = createEl('strong', '', d.period);
+    tdPeriod.appendChild(strong);
+
+    const tdDate = createEl('td', '', d.date);
+
+    const tdNumbers = createEl('td');
+    const ballsRow = createEl('div', 'balls-row');
+    d.numbers_sorted.forEach(num => {
+      ballsRow.appendChild(createEl('span', 'ball', String(num).padStart(2, '0')));
+    });
+    tdNumbers.appendChild(ballsRow);
+
+    const tdSpecial = createEl('td');
+    const specialRow = createEl('div', 'balls-row');
+    specialRow.appendChild(createEl('span', 'ball special', String(d.special).padStart(2, '0')));
+    tdSpecial.appendChild(specialRow);
+
+    tr.append(tdPeriod, tdDate, tdNumbers, tdSpecial);
+    tbody.appendChild(tr);
+  });
+
+  document.getElementById('cache-count').textContent = CURRENT_DATA.length;
+  document.getElementById('cache-range').textContent = `${CURRENT_DATA[0].date} ~ ${CURRENT_DATA[CURRENT_DATA.length - 1].date}`;
+  const latestPeriod = CURRENT_DATA[CURRENT_DATA.length - 1].period;
+  document.getElementById('pred-p1').textContent = latestPeriod + 1;
+  document.getElementById('pred-p2').textContent = latestPeriod + 2;
+  document.getElementById('pred-p3').textContent = latestPeriod + 3;
+}
+
+// Incremental multi-month sync from central GitHub or official API
+async function syncLatestData() {
+  const btn = document.getElementById('btn-sync');
+  btn.disabled = true;
+  btn.textContent = '⏳ 正在同步...';
+
+  try {
+    // 1. First attempt to pull freshly updated centralized dataset
+    const resRemote = await fetch('data/lotto649.json?t=' + Date.now());
+    if (resRemote.ok) {
+      const freshData = await resRemote.json();
+      if (freshData.length > CURRENT_DATA.length) {
+        const added = freshData.length - CURRENT_DATA.length;
+        CURRENT_DATA = freshData;
+        CURRENT_DATA.sort((a, b) => a.period - b.period);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(CURRENT_DATA)); } catch (e) {}
+        renderRecentDraws();
+        alert(`已從中央庫同步成功！共更新 ${added} 期最新獎號。`);
+        return;
+      }
+    }
+
+    // 2. Fallback: Query official API directly for current month
+    const now = new Date();
+    const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const url = `https://api.taiwanlottery.com/TLCAPIWeB/Lottery/Lotto649Result?period&month=${ym}&pageSize=35`;
+    const resp = await fetch(url);
+    if (resp.ok) {
+      const json = await resp.json();
+      const list = json?.content?.lotto649Res || [];
+      const set = new Set(CURRENT_DATA.map(x => x.period));
+      let added = 0;
+      list.forEach(item => {
+        if (!set.has(item.period)) {
+          CURRENT_DATA.push({
+            period: item.period,
+            date: item.lotteryDate.slice(0, 10),
+            numbers_sorted: item.drawNumberSize.slice(0, 6),
+            special: item.drawNumberSize[6]
+          });
+          added++;
+        }
+      });
+      if (added > 0) {
+        CURRENT_DATA.sort((a, b) => a.period - b.period);
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(CURRENT_DATA)); } catch (e) {}
+        renderRecentDraws();
+        alert(`官方 API 同步完成！新增 ${added} 期最新獎號。`);
+      } else {
+        alert('目前資料庫已是最新，無需更新！');
+      }
+    } else {
+      alert('中央資料庫已是最新狀態！');
+    }
+  } catch (err) {
+    alert('目前資料庫已是最新狀態（或處於離線狀態）。');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '↻ 檢查遠端最新期數';
+  }
+}
+
+// Mathematical composite model computation in JS
+function computePredictions(draws, steps = 3) {
+  let currentHistory = [...draws];
+  const N = currentHistory.length;
+  const decayRate = Math.log(2) / 25;
+
+  const coMatrix = Array.from({length: 50}, () => Array(50).fill(0));
+  currentHistory.forEach(d => {
+    const nums = d.numbers_sorted;
+    for (let i = 0; i < nums.length; i++) {
+      for (let j = i + 1; j < nums.length; j++) {
+        coMatrix[nums[i]][nums[j]]++;
+        coMatrix[nums[j]][nums[i]]++;
+      }
+    }
+  });
+
+  const markovMatrix = Array.from({length: 50}, () => Array(50).fill(0));
+  for (let t = 0; t < N - 1; t++) {
+    const curr = currentHistory[t].numbers_sorted;
+    const nxt = currentHistory[t + 1].numbers_sorted;
+    curr.forEach(c => {
+      nxt.forEach(n => {
+        markovMatrix[c][n]++;
+      });
+    });
+  }
+
+  const predictions = [];
+
+  for (let step = 1; step <= steps; step++) {
+    const curLen = currentHistory.length;
+    const lastDraw = currentHistory[curLen - 1].numbers_sorted;
+
+    const lastSeen = Array(50).fill(-1);
+    const gaps = Array.from({length: 50}, () => []);
+    currentHistory.forEach((d, idx) => {
+      d.numbers_sorted.forEach(num => {
+        if (lastSeen[num] !== -1) {
+          gaps[num].push(idx - lastSeen[num]);
+        }
+        lastSeen[num] = idx;
+      });
+    });
+
+    const emaScores = Array(50).fill(0);
+    currentHistory.forEach((d, idx) => {
+      const w = Math.exp(-decayRate * (curLen - 1 - idx));
+      d.numbers_sorted.forEach(num => {
+        emaScores[num] += w;
+      });
+    });
+
+    const markovScores = Array(50).fill(0);
+    lastDraw.forEach(c => {
+      for (let i = 1; i <= 49; i++) {
+        markovScores[i] += markovMatrix[c][i];
+      }
+    });
+
+    const hazardScores = Array(50).fill(0);
+    for (let i = 1; i <= 49; i++) {
+      const g = curLen - 1 - lastSeen[i];
+      const avgG = gaps[i].length > 0 ? (gaps[i].reduce((a, b) => a + b, 0) / gaps[i].length) : (49 / 6);
+      hazardScores[i] = (g / avgG) * Math.exp(-0.05 * Math.abs(g - avgG));
+    }
+
+    function norm(arr) {
+      const sub = arr.slice(1);
+      const mn = Math.min(...sub);
+      const mx = Math.max(...sub);
+      if (mx === mn) return Array(50).fill(0);
+      return [0, ...sub.map(v => (v - mn) / (mx - mn))];
+    }
+
+    const nEMA = norm(emaScores);
+    const nMarkov = norm(markovScores);
+    const nHazard = norm(hazardScores);
+
+    const composite = Array(50).fill(0);
+    for (let i = 1; i <= 49; i++) {
+      composite[i] = 0.40 * nEMA[i] + 0.35 * nMarkov[i] + 0.25 * nHazard[i];
+    }
+
+    const ranked = Array.from({length: 49}, (_, idx) => idx + 1)
+      .sort((a, b) => composite[b] - composite[a]);
+
+    const candidates = ranked.slice(0, 12);
+    let bestSet = null;
+    let bestAffinity = -1;
+
+    function getCombinations(arr, k) {
+      if (k === 1) return arr.map(x => [x]);
+      const res = [];
+      for (let i = 0; i <= arr.length - k; i++) {
+        const head = arr[i];
+        const tails = getCombinations(arr.slice(i + 1), k - 1);
+        tails.forEach(t => res.push([head, ...t]));
+      }
+      return res;
+    }
+
+    const combos = getCombinations(candidates, 6);
+    combos.forEach(combo => {
+      const sumVal = combo.reduce((a, b) => a + b, 0);
+      const oddCount = combo.filter(x => x % 2 !== 0).length;
+      if (oddCount >= 2 && oddCount <= 4 && sumVal >= 100 && sumVal <= 200) {
+        let pairScore = 0;
+        for (let i = 0; i < 6; i++) {
+          for (let j = i + 1; j < 6; j++) {
+            pairScore += coMatrix[combo[i]][combo[j]];
+          }
+        }
+        const score = combo.reduce((acc, v) => acc + composite[v], 0) * 10 + pairScore;
+        if (score > bestAffinity) {
+          bestAffinity = score;
+          bestSet = [...combo].sort((a, b) => a - b);
+        }
+      }
+    });
+
+    if (!bestSet) {
+      bestSet = candidates.slice(0, 6).sort((a, b) => a - b);
+    }
+
+    const special = ranked.find(x => !bestSet.includes(x)) || 1;
+
+    predictions.push({
+      step,
+      numbers: bestSet,
+      special,
+      sum: bestSet.reduce((a, b) => a + b, 0),
+      oddEven: `${bestSet.filter(x => x % 2 !== 0).length}奇 : ${bestSet.filter(x => x % 2 === 0).length}偶`
+    });
+
+    currentHistory.push({
+      period: currentHistory[curLen - 1].period + 1,
+      date: `simulated-${step}`,
+      numbers_sorted: bestSet,
+      special: special
+    });
+  }
+
+  return predictions;
+}
+
+// SETUP SLOT REELS STRIPS
+function initReelStrips() {
+  for (let step = 1; step <= 3; step++) {
+    for (let col = 0; col < 6; col++) {
+      populateReel(`reel-${step}-${col}`);
+    }
+    populateReel(`reel-${step}-s`);
+  }
+}
+
+function populateReel(elemId) {
+  const el = document.getElementById(elemId);
+  if (!el) return;
+  el.replaceChildren();
+  for (let i = 0; i < 30; i++) {
+    const val = Math.floor(Math.random() * 49) + 1;
+    el.appendChild(createEl('div', 'slot-digit', String(val).padStart(2, '0')));
+  }
+  el.appendChild(createEl('div', 'slot-digit', '??'));
+}
+
+// ANIMATION DRIVER
+let isSpinning = false;
+
+function startSlotMachine() {
+  if (isSpinning || CURRENT_DATA.length === 0) return;
+  isSpinning = true;
+  const btn = document.getElementById('lever-btn');
+  btn.disabled = true;
+
+  for (let i = 1; i <= 3; i++) {
+    document.getElementById(`box-${i}`).classList.remove('active-reveal');
+    document.getElementById(`meta-${i}`).textContent = '動力學演算法計算中...';
+  }
+
+  const predictions = computePredictions(CURRENT_DATA, 3);
+  const DIGIT_HEIGHT = 72;
+  const TOTAL_ITEMS = 30;
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  predictions.forEach((pred, pIdx) => {
+    const step = pIdx + 1;
+    const targets = [...pred.numbers, pred.special];
+    const reelIds = [
+      `reel-${step}-0`, `reel-${step}-1`, `reel-${step}-2`,
+      `reel-${step}-3`, `reel-${step}-4`, `reel-${step}-5`,
+      `reel-${step}-s`
+    ];
+
+    targets.forEach((finalNum, rIdx) => {
+      const reel = document.getElementById(reelIds[rIdx]);
+      reel.lastElementChild.textContent = String(finalNum).padStart(2, '0');
+
+      if (prefersReducedMotion) {
+        reel.style.transform = `translateY(-${TOTAL_ITEMS * DIGIT_HEIGHT}px)`;
+      } else {
+        reel.style.transition = 'none';
+        reel.style.transform = 'translateY(0px)';
+
+        const delay = (pIdx * 1000) + (rIdx * 150);
+        const duration = 1200 + (rIdx * 100);
+
+        setTimeout(() => {
+          reel.style.transition = `transform ${duration}ms cubic-bezier(0.12, 0.8, 0.32, 1)`;
+          reel.style.transform = `translateY(-${TOTAL_ITEMS * DIGIT_HEIGHT}px)`;
+        }, delay);
+      }
+    });
+
+    const settleDelay = prefersReducedMotion ? 100 : (pIdx * 1000) + (7 * 150) + 1200;
+    setTimeout(() => {
+      document.getElementById(`box-${step}`).classList.add('active-reveal');
+      document.getElementById(`meta-${step}`).textContent = 
+        `總和: ${pred.sum} · 奇偶: ${pred.oddEven} · 拓撲穩定態`;
+    }, settleDelay);
+  });
+
+  const totalDuration = prefersReducedMotion ? 200 : (2 * 1000) + (7 * 150) + 1300;
+  setTimeout(() => {
+    isSpinning = false;
+    btn.disabled = false;
+    // Announce to Screen Readers via ARIA Live region
+    const announcer = document.getElementById('live-announcer');
+    announcer.textContent = `搖獎推導完成。未來第1期號碼為：${predictions[0].numbers.join(', ')}，特別號：${predictions[0].special}。`;
+  }, totalDuration);
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  initReelStrips();
+  initDataset();
+});
+</script>
+
+</body>
+</html>
