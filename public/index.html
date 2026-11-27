@@ -477,24 +477,35 @@
     }
 
     .disclaimer-card {
-      background: linear-gradient(135deg, rgba(255, 71, 87, 0.08), rgba(245, 200, 66, 0.05));
-      border: 1px dashed rgba(255, 71, 87, 0.4);
-      border-radius: 16px;
-      padding: 24px;
+      background: linear-gradient(135deg, rgba(245, 200, 66, 0.12) 0%, rgba(255, 71, 87, 0.12) 100%);
+      border: 2px solid var(--gold-primary);
+      border-radius: 20px;
+      padding: 32px 24px;
       text-align: center;
+      box-shadow: 0 10px 30px rgba(245, 200, 66, 0.2), inset 0 0 15px rgba(245, 200, 66, 0.08);
+      margin-top: 10px;
     }
     .warning-text {
       color: #ff6b81;
-      font-weight: 700;
-      font-size: 1.15rem;
-      margin-bottom: 10px;
-      letter-spacing: 1px;
+      font-weight: 900;
+      font-size: 1.45rem;
+      margin-bottom: 14px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 12px rgba(255, 71, 87, 0.4);
     }
     .charity-text {
-      color: #f5c842;
-      font-size: 1rem;
-      font-weight: 500;
-      line-height: 1.75;
+      color: #ffd32a;
+      font-size: 1.25rem;
+      font-weight: 700;
+      line-height: 1.85;
+      text-shadow: 0 0 15px rgba(245, 200, 66, 0.35);
+    }
+    .charity-highlight {
+      color: #ffffff;
+      background: rgba(255, 71, 87, 0.3);
+      padding: 2px 8px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 71, 87, 0.6);
     }
 
     .sr-only {
@@ -711,9 +722,9 @@
   </main>
 
   <footer class="disclaimer-card" role="contentinfo">
-    <div class="warning-text">『純屬娛樂，量力而為支持公益』</div>
+    <div class="warning-text">『 純屬娛樂，量力而為支持公益 』</div>
     <div class="charity-text">
-      『若幸運之神眷顧您，請撥 1/10 的獎金，捐助「中華聯合勸募協會」或自己心儀的公益團體，祝福您。』
+      『 若幸運之神眷顧您，請撥 <span class="charity-highlight">1/10 的獎金</span> 捐助「中華聯合勸募協會」或自己心儀的公益慈善團體，把福氣傳遞出去，祝福您！ 』
     </div>
   </footer>
 </div>
