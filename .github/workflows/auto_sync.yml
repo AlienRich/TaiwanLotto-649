@@ -1,0 +1,36 @@
+name: Auto Sync Lotto 649 Data
+
+on:
+  schedule:
+    # 台灣大樂透每週二、每週五晚上開獎（約 20:30 開獎完畢）
+    # UTC 13:00 等於台灣時間 (UTC+8) 21:00
+    - cron: '0 13 * * 2,5'
+  workflow_dispatch: # 支援在 GitHub 網頁上手動一鍵點擊執行
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Fetch and merge latest lottery draws
+        run: python scripts/sync_lotto.py
+
+      - name: Commit and push if updated
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action Bot"
+          git add data/lotto649.json public/data/lotto649.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto sync: Update Lotto 649 historical data" && git push)
